@@ -2,6 +2,7 @@
 #include<string.h>
 #include<unistd.h>
 #include<stdlib.h>
+#include<fcntl.h>
 #include<sys/wait.h>
 
 #define DEBUG_LOG 0
@@ -12,6 +13,27 @@ struct command
 	char **tokens;
 	int wordLength;
 };
+
+/******************************************************************************************************************
+                                                DEBUG FUNCTIONS
+ ******************************************************************************************************************/
+
+
+void debug_parse(struct command com)
+{
+        int i = 0;
+        printf("%d", com.wordLength);
+        while (i < com.wordLength)
+        {
+                printf("%s\n", com.tokens[i]);
+                i++;
+        }
+}
+
+
+/*****************************************************************************************************************
+                                              DEBUG FUNCTIONS END
+ *****************************************************************************************************************/
 
 
 struct command parse(char *str)
@@ -53,6 +75,36 @@ char *buildpath(struct command cmd)
 }
 
 
+void redirect(struct command *cmd)
+{
+	for(int i=0; i<cmd->wordLength-1; i++)
+	{
+		if(cmd->tokens[i][0]== '>')
+		{
+			if(i!=cmd->wordLength-2)
+				fprintf(stderr, "An error occured\n");
+			else
+			{
+				//int fd = open(cmd->tokens[i+1], O_CREAT|O_WRONLY|O_TRUNC, 0777);
+				//if(fd < 0)
+				//	fprintf(stderr, "File open failed\n");	
+				//if(dup2(fd, STDOUT_FILENO<0))	fprintf(stderr, "Redirection failed");
+
+				//fflush(stdout);
+				//close(fd);
+				
+				if(freopen(cmd->tokens[i+1], "w", stdout)==NULL)	 fprintf(stderr, "Cannot write\n");
+				cmd->tokens[i]=NULL;
+				cmd->tokens[i+1]=NULL;
+				cmd->wordLength-=2;
+			}
+
+			return;
+		}
+	}	
+}
+
+
 void executeCommand(struct command com)
 {
 	 if(com.wordLength>0)
@@ -68,9 +120,12 @@ void executeCommand(struct command com)
                         else if (rc==0)
                         {
                                 char **myargs = malloc ( (com.wordLength+1) * sizeof(char *) );
+				
+				redirect(&com);
+
                                 for (int i=0; i<com.wordLength; i++)
-                                        myargs[i]=strdup(com.tokens[i]);
-                                myargs[com.wordLength]='\0';
+				        myargs[i]=strdup(com.tokens[i]);
+                           	myargs[com.wordLength]='\0';
                                 execvp (myargs[0], myargs);
 				fprintf(stderr, "An error occured\n");
 				exit(1);
@@ -126,26 +181,6 @@ int executeBuiltin(struct command cmd)
 }
 		
 
-
-/******************************************************************************************************************
-						DEBUG FUNCTIONS
- ******************************************************************************************************************/
-
-
-void debug_parse(struct command com)
-{
-	int i = 0;
-        while (i < com.wordLength)
-        {
-                printf("%s\n", com.tokens[i]);
-        	i++;
-	}
-}
-
-
-/*****************************************************************************************************************
-           				      DEBUG FUNCTIONS END
- *****************************************************************************************************************/
 
 
 int main(int argc, char *argv[])
